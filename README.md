@@ -1,4 +1,20 @@
-# VINS-Mono
+# VINS-Mono (for ROS1 Noetic)
+
+- Minimal build
+
+    ```bash
+    cd ~/catkin_ws
+    catkin build camera_model feature_tracker pose_graph vins_estimator
+    ```
+
+- Minimal run
+
+    ```bash
+    roslaunch vins_estimator euroc.launch
+    roslaunch vins_estimator vins_rviz.launch
+    rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
+    ```
+
 ## A Robust and Versatile Monocular Visual-Inertial State Estimator
 
 **11 Jan 2019**: An extension of **VINS**, which supports stereo cameras / stereo cameras + IMU / mono camera + IMU, is published at [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion)
