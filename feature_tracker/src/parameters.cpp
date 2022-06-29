@@ -38,7 +38,7 @@ void readParameters(ros::NodeHandle &n)
 {
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");
-    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
+    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ); // Read the settings from yaml file
     if(!fsSettings.isOpened())
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
@@ -68,7 +68,7 @@ void readParameters(ros::NodeHandle &n)
     if (FREQ == 0)
         FREQ = 100;
 
-    fsSettings.release();
+    fsSettings.release(); // Release the file storage
 
 
 }

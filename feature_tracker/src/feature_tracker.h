@@ -50,8 +50,8 @@ class FeatureTracker
     cv::Mat fisheye_mask;
     cv::Mat prev_img, cur_img, forw_img;
     vector<cv::Point2f> n_pts;
-    vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
-    vector<cv::Point2f> prev_un_pts, cur_un_pts;
+    vector<cv::Point2f> prev_pts, cur_pts, forw_pts; // points on image plane
+    vector<cv::Point2f> prev_un_pts, cur_un_pts; // undistorted points on normalized image plane
     vector<cv::Point2f> pts_velocity;
     vector<int> ids;
     vector<int> track_cnt;

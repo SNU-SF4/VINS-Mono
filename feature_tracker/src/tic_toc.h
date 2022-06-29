@@ -9,7 +9,7 @@ class TicToc
   public:
     TicToc()
     {
-        tic();
+        tic(); // start timing when constructed
     }
 
     void tic()

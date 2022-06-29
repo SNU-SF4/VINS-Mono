@@ -9,25 +9,25 @@
 
 #include "feature_tracker.h"
 
-#define SHOW_UNDISTORTION 0
+#define SHOW_UNDISTORTION 0 // show undistorted images
 
-vector<uchar> r_status;
-vector<float> r_err;
-queue<sensor_msgs::ImageConstPtr> img_buf;
+vector<uchar> r_status; // status for each feature point
+vector<float> r_err; // error for each feature point
+queue<sensor_msgs::ImageConstPtr> img_buf; // buffer for images
 
-ros::Publisher pub_img,pub_match;
-ros::Publisher pub_restart;
+ros::Publisher pub_img, pub_match; // publisher for images and point cloud
+ros::Publisher pub_restart; // publisher for restarting feature tracking
 
-FeatureTracker trackerData[NUM_OF_CAM];
+FeatureTracker trackerData[NUM_OF_CAM]; // feature tracker data list for each camera
 double first_image_time;
 int pub_count = 1;
 bool first_image_flag = true;
 double last_image_time = 0;
-bool init_pub = 0;
+bool init_pub = false;
 
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
-    if(first_image_flag)
+    if(first_image_flag) // if received first image
     {
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();
@@ -38,7 +38,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     if (img_msg->header.stamp.toSec() - last_image_time > 1.0 || img_msg->header.stamp.toSec() < last_image_time)
     {
         ROS_WARN("image discontinue! reset the feature tracker!");
-        first_image_flag = true; 
+        first_image_flag = true;
         last_image_time = 0;
         pub_count = 1;
         std_msgs::Bool restart_flag;
@@ -49,7 +49,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     last_image_time = img_msg->header.stamp.toSec();
     // frequency control
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
-    {
+    { // if frequency is lower than expected frequency
         PUB_THIS_FRAME = true;
         // reset the frequency control
         if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
@@ -61,7 +61,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     else
         PUB_THIS_FRAME = false;
 
-    cv_bridge::CvImageConstPtr ptr;
+    cv_bridge::CvImageConstPtr ptr; // pointer to image message
+    // convert image message to cv_bridge::CvImage
     if (img_msg->encoding == "8UC1")
     {
         sensor_msgs::Image img;
@@ -77,21 +78,26 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
 
-    cv::Mat show_img = ptr->image;
-    TicToc t_r;
+    cv::Mat show_img = ptr->image; // copy image message to opencv matrix
+    TicToc t_r; // time counter for processing image
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         ROS_DEBUG("processing camera %d", i);
-        if (i != 1 || !STEREO_TRACK)
+        if (i != 1 || !STEREO_TRACK) // if not stereo tracking or stereo tracking is not enabled for this camera
+            // read image and time stamp
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
-        else
+        else // if stereo tracking is enabled for this camera
         {
-            if (EQUALIZE)
+            if (EQUALIZE) // param EQUALIZE: if image is too dark or light, turn on equalize to find enough features
             {
-                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(); // create CLAHE object for equalize
+                // rowRange(start row, end row): interested rows
+                // clahe->apply(input, output): equalize image
+                // update cur_img as equalize image
                 clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
             }
             else
+                // update cur_img
                 trackerData[i].cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
         }
 
@@ -100,48 +106,51 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 #endif
     }
 
+    // update new feature points ids
     for (unsigned int i = 0;; i++)
     {
-        bool completed = false;
-        for (int j = 0; j < NUM_OF_CAM; j++)
-            if (j != 1 || !STEREO_TRACK)
-                completed |= trackerData[j].updateID(i);
-        if (!completed)
+        bool completed = false; // if all cameras have completed feature tracking
+        for (int j = 0; j < NUM_OF_CAM; j++) // for each camera
+            if (j != 1 || !STEREO_TRACK) // if not stereo tracking or stereo tracking is not enabled for this camera
+                completed |= trackerData[j].updateID(i); // update feature id
+        if (!completed) // if not all cameras have completed feature tracking
             break;
     }
 
-   if (PUB_THIS_FRAME)
-   {
+    if (PUB_THIS_FRAME) // if frequency is lower than expected frequency
+    {
         pub_count++;
-        sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
-        sensor_msgs::ChannelFloat32 id_of_point;
-        sensor_msgs::ChannelFloat32 u_of_point;
-        sensor_msgs::ChannelFloat32 v_of_point;
-        sensor_msgs::ChannelFloat32 velocity_x_of_point;
-        sensor_msgs::ChannelFloat32 velocity_y_of_point;
+        sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud); // create point cloud message
+        sensor_msgs::ChannelFloat32 id_of_point;         // create channel for point id
+        sensor_msgs::ChannelFloat32 u_of_point;          // create channel for point u coordinate
+        sensor_msgs::ChannelFloat32 v_of_point;          // create channel for point v coordinate
+        sensor_msgs::ChannelFloat32 velocity_x_of_point; // create channel for point velocity x coordinate
+        sensor_msgs::ChannelFloat32 velocity_y_of_point; // create channel for point velocity y coordinate
 
-        feature_points->header = img_msg->header;
-        feature_points->header.frame_id = "world";
+        feature_points->header = img_msg->header; // set header of point cloud message
+        feature_points->header.frame_id = "world"; // set frame id of point cloud message
 
-        vector<set<int>> hash_ids(NUM_OF_CAM);
-        for (int i = 0; i < NUM_OF_CAM; i++)
+        vector<set<int>> hash_ids(NUM_OF_CAM); // hash table for feature id
+        for (int i = 0; i < NUM_OF_CAM; i++) // for each camera
         {
-            auto &un_pts = trackerData[i].cur_un_pts;
-            auto &cur_pts = trackerData[i].cur_pts;
-            auto &ids = trackerData[i].ids;
-            auto &pts_velocity = trackerData[i].pts_velocity;
+            auto &un_pts = trackerData[i].cur_un_pts; // reference to current points
+            auto &cur_pts = trackerData[i].cur_pts; // reference to current undistorted points
+            auto &ids = trackerData[i].ids; // reference to current feature id
+            auto &pts_velocity = trackerData[i].pts_velocity; // reference to current feature velocity
             for (unsigned int j = 0; j < ids.size(); j++)
             {
+                // only publish feature points with tracking times greater than 1
                 if (trackerData[i].track_cnt[j] > 1)
                 {
                     int p_id = ids[j];
                     hash_ids[i].insert(p_id);
-                    geometry_msgs::Point32 p;
-                    p.x = un_pts[j].x;
-                    p.y = un_pts[j].y;
-                    p.z = 1;
+                    geometry_msgs::Point32 p; // normalized coordinates
+                    p.x = un_pts[j].x; // x coordinate (in normalized plane)
+                    p.y = un_pts[j].y; // y coordinate (in normalized plane)
+                    p.z = 1;           // z coordinate (in normalized plane)
 
-                    feature_points->points.push_back(p);
+                    feature_points->points.push_back(p); // add feature point to point cloud message
+                    // update channel information
                     id_of_point.values.push_back(p_id * NUM_OF_CAM + i);
                     u_of_point.values.push_back(cur_pts[j].x);
                     v_of_point.values.push_back(cur_pts[j].y);
@@ -150,21 +159,23 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                 }
             }
         }
-        feature_points->channels.push_back(id_of_point);
-        feature_points->channels.push_back(u_of_point);
-        feature_points->channels.push_back(v_of_point);
-        feature_points->channels.push_back(velocity_x_of_point);
-        feature_points->channels.push_back(velocity_y_of_point);
+        // optional additional information about each point
+        feature_points->channels.push_back(id_of_point);         // channel[0]: for point id
+        feature_points->channels.push_back(u_of_point);          // channel[1]: for u coordinate (pixel coordinates)
+        feature_points->channels.push_back(v_of_point);          // channel[2]: for v coordinate (pixel coordinates)
+        feature_points->channels.push_back(velocity_x_of_point); // channel[3]: for velocity x of point
+        feature_points->channels.push_back(velocity_y_of_point); // channel[4]: for velocity y of point
         ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
-        // skip the first image; since no optical speed on frist image
-        if (!init_pub)
+
+        // skip the first image; since no optical speed on first image
+        if (!init_pub) // if it is the first frame, do not publish the data
         {
-            init_pub = 1;
+            init_pub = true;
         }
         else
             pub_img.publish(feature_points);
 
-        if (SHOW_TRACK)
+        if (SHOW_TRACK) // publish tracking image
         {
             ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
             //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
@@ -177,8 +188,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
                 for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
                 {
+                    // red circle: high frequency / blue circle: low frequency
                     double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
-                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+                    cv::circle(tmp_img,
+                               trackerData[i].cur_pts[j],
+                               2,
+                               cv::Scalar(255 * (1 - len), 0, 255 * len),
+                               2);
                     //draw speed line
                     /*
                     Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
