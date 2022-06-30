@@ -15,6 +15,12 @@
     rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
     ```
 
+## List of completed comments
+
+- [x] feature_tracker
+- [ ] vins_estimator
+- [ ] pose_graph
+
 ## A Robust and Versatile Monocular Visual-Inertial State Estimator
 
 **11 Jan 2019**: An extension of **VINS**, which supports stereo cameras / stereo cameras + IMU / mono camera + IMU, is published at [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion)
