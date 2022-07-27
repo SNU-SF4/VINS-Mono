@@ -4,20 +4,23 @@
 #include "../parameters.h"
 
 #include <ceres/ceres.h>
+
+#include <utility>
 using namespace Eigen;
 
 class IntegrationBase
 {
   public:
-    IntegrationBase() = delete;
+    IntegrationBase() = delete; // prevent instantiation
     IntegrationBase(const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0,
-                    const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
+                    Eigen::Vector3d _linearized_ba, Eigen::Vector3d _linearized_bg)
         : acc_0{_acc_0}, gyr_0{_gyr_0}, linearized_acc{_acc_0}, linearized_gyr{_gyr_0},
-          linearized_ba{_linearized_ba}, linearized_bg{_linearized_bg},
-            jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, covariance{Eigen::Matrix<double, 15, 15>::Zero()},
+          linearized_ba{std::move(_linearized_ba)}, linearized_bg{std::move(_linearized_bg)},
+          jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, covariance{Eigen::Matrix<double, 15, 15>::Zero()},
           sum_dt{0.0}, delta_p{Eigen::Vector3d::Zero()}, delta_q{Eigen::Quaterniond::Identity()}, delta_v{Eigen::Vector3d::Zero()}
 
     {
+        // 18x18 covariance matrix of noise
         noise = Eigen::Matrix<double, 18, 18>::Zero();
         noise.block<3, 3>(0, 0) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
@@ -157,19 +160,26 @@ class IntegrationBase
      
     }
 
-    Eigen::Matrix<double, 15, 1> evaluate(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Bai, const Eigen::Vector3d &Bgi,
-                                          const Eigen::Vector3d &Pj, const Eigen::Quaterniond &Qj, const Eigen::Vector3d &Vj, const Eigen::Vector3d &Baj, const Eigen::Vector3d &Bgj)
+    Eigen::Matrix<double, 15, 1> evaluate(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi,
+                                          const Eigen::Vector3d &Bai, const Eigen::Vector3d &Bgi,
+                                          const Eigen::Vector3d &Pj, const Eigen::Quaterniond &Qj, const Eigen::Vector3d &Vj,
+                                          const Eigen::Vector3d &Baj, const Eigen::Vector3d &Bgj)
     {
-        Eigen::Matrix<double, 15, 1> residuals;
+        // P: Position, Q: Quaternion, V: Velocity, Ba: bias of accelerometer, Bg: bias of gyroscope
+        Eigen::Matrix<double, 15, 1> residuals; // get IMU residuals
 
-        Eigen::Matrix3d dp_dba = jacobian.block<3, 3>(O_P, O_BA);
-        Eigen::Matrix3d dp_dbg = jacobian.block<3, 3>(O_P, O_BG);
+        // position residuals
+        Eigen::Matrix3d dp_dba = jacobian.block<3, 3>(O_P, O_BA); // get from (0, 9) to (3, 12)
+        Eigen::Matrix3d dp_dbg = jacobian.block<3, 3>(O_P, O_BG); // get from (0, 12) to (3, 15)
 
-        Eigen::Matrix3d dq_dbg = jacobian.block<3, 3>(O_R, O_BG);
+        // velocity residuals
+        Eigen::Matrix3d dq_dbg = jacobian.block<3, 3>(O_R, O_BG); // get from (3, 12) to (6, 15)
 
-        Eigen::Matrix3d dv_dba = jacobian.block<3, 3>(O_V, O_BA);
-        Eigen::Matrix3d dv_dbg = jacobian.block<3, 3>(O_V, O_BG);
+        // orientation residuals
+        Eigen::Matrix3d dv_dba = jacobian.block<3, 3>(O_V, O_BA); // get from (6, 9) to (9, 12)
+        Eigen::Matrix3d dv_dbg = jacobian.block<3, 3>(O_V, O_BG); // get from (6, 12) to (9, 15)
 
+        //
         Eigen::Vector3d dba = Bai - linearized_ba;
         Eigen::Vector3d dbg = Bgi - linearized_bg;
 
@@ -185,7 +195,7 @@ class IntegrationBase
         return residuals;
     }
 
-    double dt;
+    double dt{};
     Eigen::Vector3d acc_0, gyr_0;
     Eigen::Vector3d acc_1, gyr_1;
 

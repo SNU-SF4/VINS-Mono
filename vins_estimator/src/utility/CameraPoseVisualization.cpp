@@ -1,9 +1,9 @@
 #include "CameraPoseVisualization.h"
 
 const Eigen::Vector3d CameraPoseVisualization::imlt = Eigen::Vector3d(-1.0, -0.5, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::imrt = Eigen::Vector3d( 1.0, -0.5, 1.0);
+const Eigen::Vector3d CameraPoseVisualization::imrt = Eigen::Vector3d(1.0, -0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::imlb = Eigen::Vector3d(-1.0,  0.5, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::imrb = Eigen::Vector3d( 1.0,  0.5, 1.0);
+const Eigen::Vector3d CameraPoseVisualization::imrb = Eigen::Vector3d(1.0,  0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::lt0 = Eigen::Vector3d(-0.7, -0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::lt1 = Eigen::Vector3d(-0.7, -0.2, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::lt2 = Eigen::Vector3d(-1.0, -0.2, 1.0);
@@ -27,74 +27,13 @@ CameraPoseVisualization::CameraPoseVisualization(float r, float g, float b, floa
     m_optical_center_connector_color.a = a;
 }
 
-void CameraPoseVisualization::setImageBoundaryColor(float r, float g, float b, float a) {
-    m_image_boundary_color.r = r;
-    m_image_boundary_color.g = g;
-    m_image_boundary_color.b = b;
-    m_image_boundary_color.a = a;
-}
-
-void CameraPoseVisualization::setOpticalCenterConnectorColor(float r, float g, float b, float a) {
-    m_optical_center_connector_color.r = r;
-    m_optical_center_connector_color.g = g;
-    m_optical_center_connector_color.b = b;
-    m_optical_center_connector_color.a = a;
-}
-
 void CameraPoseVisualization::setScale(double s) {
     m_scale = s;
 }
+
 void CameraPoseVisualization::setLineWidth(double width) {
     m_line_width = width;
 }
-void CameraPoseVisualization::add_edge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1){
-    visualization_msgs::Marker marker;
-
-    marker.ns = m_marker_ns;
-    marker.id = m_markers.size() + 1;
-    marker.type = visualization_msgs::Marker::LINE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = 0.005;
-
-    marker.color.g = 1.0f;
-    marker.color.a = 1.0;
-
-    geometry_msgs::Point point0, point1;
-
-    Eigen2Point(p0, point0);
-    Eigen2Point(p1, point1);
-
-    marker.points.push_back(point0);
-    marker.points.push_back(point1);
-
-    m_markers.push_back(marker);
-}
-
-void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1){
-    visualization_msgs::Marker marker;
-
-    marker.ns = m_marker_ns;
-    marker.id = m_markers.size() + 1;
-    marker.type = visualization_msgs::Marker::LINE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = 0.04;
-    //marker.scale.x = 0.3;
-
-    marker.color.r = 1.0f;
-    marker.color.b = 1.0f;
-    marker.color.a = 1.0;
-
-    geometry_msgs::Point point0, point1;
-
-    Eigen2Point(p0, point0);
-    Eigen2Point(p1, point1);
-
-    marker.points.push_back(point0);
-    marker.points.push_back(point1);
-
-    m_markers.push_back(marker);
-}
-
 
 void CameraPoseVisualization::add_pose(const Eigen::Vector3d& p, const Eigen::Quaterniond& q) {
     visualization_msgs::Marker marker;
@@ -186,7 +125,7 @@ void CameraPoseVisualization::reset() {
 	m_markers.clear();
 }
 
-void CameraPoseVisualization::publish_by( ros::Publisher &pub, const std_msgs::Header &header ) {
+void CameraPoseVisualization::publish_by( ros::Publisher &pub, const std_msgs::Header &header) {
 	visualization_msgs::MarkerArray markerArray_msg;
 	
 	for(auto& marker : m_markers) {

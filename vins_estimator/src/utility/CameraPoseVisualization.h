@@ -12,18 +12,15 @@ public:
 	std::string m_marker_ns;
 
 	CameraPoseVisualization(float r, float g, float b, float a);
-	
-	void setImageBoundaryColor(float r, float g, float b, float a=1.0);
-	void setOpticalCenterConnectorColor(float r, float g, float b, float a=1.0);
-	void setScale(double s);
-	void setLineWidth(double width);
+
+	void setScale(double s); // set scale of the visualization
+	void setLineWidth(double width); // set line width of the visualization
 
 	void add_pose(const Eigen::Vector3d& p, const Eigen::Quaterniond& q);
 	void reset();
 
-	void publish_by(ros::Publisher& pub, const std_msgs::Header& header);
-	void add_edge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1);
-	void add_loopedge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1);
+	void publish_by(ros::Publisher& pub, const std_msgs::Header& header); // publish the visualization
+
 private:
 	std::vector<visualization_msgs::Marker> m_markers;
 	std_msgs::ColorRGBA m_image_boundary_color;
@@ -31,12 +28,12 @@ private:
 	double m_scale;
 	double m_line_width;
 
-	static const Eigen::Vector3d imlt;
-	static const Eigen::Vector3d imlb;
-	static const Eigen::Vector3d imrt;
-	static const Eigen::Vector3d imrb;
-	static const Eigen::Vector3d oc  ;
-	static const Eigen::Vector3d lt0 ;
-	static const Eigen::Vector3d lt1 ;
-	static const Eigen::Vector3d lt2 ;
+	static const Eigen::Vector3d imlt; // image left top
+	static const Eigen::Vector3d imlb; // image left bottom
+	static const Eigen::Vector3d imrt; // image right top
+	static const Eigen::Vector3d imrb; // image right bottom
+	static const Eigen::Vector3d oc  ; // optical center
+	static const Eigen::Vector3d lt0 ; // left top 0
+	static const Eigen::Vector3d lt1 ; // left top 1
+	static const Eigen::Vector3d lt2 ; // left top 2
 };

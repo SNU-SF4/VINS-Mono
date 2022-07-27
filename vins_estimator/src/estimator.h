@@ -66,7 +66,7 @@ class Estimator
     MarginalizationFlag  marginalization_flag;
     Vector3d g;
     MatrixXd Ap[2], backup_A;
-    VectorXd bp[2], backup_b;
+    VectorXd bp[2], backup_bb;
 
     Matrix3d ric[NUM_OF_CAM];
     Vector3d tic[NUM_OF_CAM];
@@ -122,7 +122,7 @@ class Estimator
     map<double, ImageFrame> all_image_frame;
     IntegrationBase *tmp_pre_integration;
 
-    //relocalization variable
+    // relocalization variable
     bool relocalization_info;
     double relo_frame_stamp;
     double relo_frame_index;

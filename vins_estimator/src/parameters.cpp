@@ -10,8 +10,6 @@ std::vector<Eigen::Vector3d> TIC;
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
 
-double BIAS_ACC_THRESHOLD;
-double BIAS_GYR_THRESHOLD;
 double SOLVER_TIME;
 int NUM_ITERATIONS;
 int ESTIMATE_EXTRINSIC;
@@ -41,6 +39,7 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(ros::NodeHandle &n)
 {
+    // set config file path
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
@@ -49,13 +48,15 @@ void readParameters(ros::NodeHandle &n)
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
-    fsSettings["imu_topic"] >> IMU_TOPIC;
+    fsSettings["imu_topic"] >> IMU_TOPIC; // set imu topic name
 
+    // optimization parameters
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
     MIN_PARALLAX = fsSettings["keyframe_parallax"];
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
 
+    // set result file path
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
     VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
@@ -67,32 +68,44 @@ void readParameters(ros::NodeHandle &n)
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     fout.close();
 
+    // set imu parameters
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
     GYR_N = fsSettings["gyr_n"];
     GYR_W = fsSettings["gyr_w"];
-    G.z() = fsSettings["g_norm"];
+    G.z() = fsSettings["g_norm"]; // gravity magnitude
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
     ROS_INFO("ROW: %f COL: %f ", ROW, COL);
 
+    // set extrinsic parameter
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
     {
+        // ESTIMATE_EXTRINSIC: 2
+        // Don't know anything about extrinsic parameters.
+        // You don't need to give R,T. We will try to calibrate it.
+        // Do some rotation movement at beginning.
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
-        RIC.push_back(Eigen::Matrix3d::Identity());
-        TIC.push_back(Eigen::Vector3d::Zero());
+        RIC.emplace_back(Eigen::Matrix3d::Identity());
+        TIC.emplace_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
 
     }
     else 
     {
-        if ( ESTIMATE_EXTRINSIC == 1)
+        if (ESTIMATE_EXTRINSIC == 1)
         {
+            // ESTIMATE_EXTRINSIC: 1
+            // Have an initial guess about extrinsic parameters.
+            // We will optimize around your initial guess.
             ROS_WARN(" Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
+            // ESTIMATE_EXTRINSIC: 0
+            // Have an accurate extrinsic parameters.
+            // We will trust the following imu^R_cam, imu^T_cam, don't change it.
             ROS_WARN(" fix extrinsic param ");
 
         cv::Mat cv_R, cv_T;
@@ -112,9 +125,8 @@ void readParameters(ros::NodeHandle &n)
     } 
 
     INIT_DEPTH = 5.0;
-    BIAS_ACC_THRESHOLD = 0.1;
-    BIAS_GYR_THRESHOLD = 0.1;
 
+    // set unsynchronization parameters
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];
     if (ESTIMATE_TD)
@@ -122,6 +134,7 @@ void readParameters(ros::NodeHandle &n)
     else
         ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
 
+    // set rolling shutter parameters
     ROLLING_SHUTTER = fsSettings["rolling_shutter"];
     if (ROLLING_SHUTTER)
     {
